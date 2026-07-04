@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Tracker & Timers</title>
+    <style>
+        :root {
+            --bg-color: #0b1622;
+            --card-bg: #151f2e;
+            --text-main: #9fadbd;
+            --text-light: #e5ebf1;
+            --accent: #3db4f2;
+            --accent-hover: #2c97d4;
+            --success: #68d999;
+            --danger: #e25c5c;
+            --dropped-bg: #e25c5c20;
+            --local-sync: #f6ad55;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background-color: var(--bg-color);
+            border: 1px solid #2b3a4a;
+            color: var(--text-light);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .filter-btn {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid #2b3a4a;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        #status-message {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            color: var(--text-light);
+        }
+
+        .anime-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px 0;
+        }
+
+        .anime-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+            position: relative;
+        }
+
+        .anime-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            height: 180px;
+        }
+
+        .cover-img {
+            width: 120px;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-info {
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .anime-title {
+            color: var(--text-light);
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .badge-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .anime-status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-watching { background-color: rgba(104, 217, 153, 0.2); color: var(--success); }
+        .status-dropped { background-color: var(--dropped-bg); color: var(--danger); }
+        .status-completed { background-color: rgba(61, 180, 242, 0.2); color: var(--accent); }
+        .status-paused { background-color: rgba(246, 173, 85, 0.2); color: #f6ad55; }
+        .status-planning { background-color: rgba(159, 173, 189, 0.2); color: var(--text-main); }
+
+        .override-badge {
+            background-color: rgba(246, 173, 85, 0.2);
+            color: var(--local-sync);
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            margin-top: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .plus-btn {
+            background-color: #2b3a4a;
+            color: var(--text-light);
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .plus-btn:hover {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .highlight {
+            color: var(--text-light);
+            font-weight: bold;
+        }
+
+        .card-footer {
+            padding: 15px;
+            background-color: rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .availability {
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .new-ep {
+            background-color: rgba(104, 217, 153, 0.1);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .up-to-date {
+            background-color: rgba(159, 173, 189, 0.1);
+            color: var(--text-main);
+            border: 1px solid #2b3a4a;
+        }
+
+        .timer-container {
+            text-align: center;
+            background: rgba(61, 180, 242, 0.1);
+            border: 1px solid rgba(61, 180, 242, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .timer-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--text-light);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .no-timer {
+            text-align: center;
+            padding: 10px;
+            font-size: 14px;
+            color: var(--text-main);
+            font-style: italic;
+        }
+        
+        .loader {
+            border: 4px solid var(--card-bg);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container controls">
+            <div class="input-group">
+                <input type="text" id="username-input" placeholder="Enter AniList Username...">
+                <button id="fetch-btn">Load Data</button>
+            </div>
+            <div class="filters" id="filters">
+                <button class="filter-btn active" data-status="ALL">All Shows</button>
+                <button class="filter-btn" data-status="CURRENT">Watching</button>
+                <button class="filter-btn" data-status="DROPPED">Dropped</button>
+                <button class="filter-btn" data-status="PAUSED">Paused</button>
+                <button class="filter-btn" data-status="COMPLETED">Completed</button>
+                <button class="filter-btn" data-status="PLANNING">Planning</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="status-message">Enter your AniList username to view your trackers.</div>
+        <div class="anime-grid" id="anime-grid"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://graphql.anilist.co';
+        let allAnimeData = [];
+        let currentFilter = 'ALL';
+        let countdownInterval;
+
+        const DOM = {
+            input: document.getElementById('username-input'),
+            btn: document.getElementById('fetch-btn'),
+            grid: document.getElementById('anime-grid'),
+            statusMessage: document.getElementById('status-message'),
+            filters: document.querySelectorAll('.filter-btn')
+        };
+
+        const query = `
+        query ($userName: String) {
+          MediaListCollection(userName: $userName, type: ANIME) {
+            lists {
+              status
+              entries {
+                progress
+                media {
+                  id
+                  status
+                  title {
+                    english
+                    romaji
+                  }
+                  coverImage {
+                    large
+                  }
+                  episodes
+                  nextAiringEpisode {
+                    airingAt
+                    episode
+                  }
+                }
+              }
+            }
+          }
+        }`;
+
+        window.onload = () => {
+            const savedUsername = localStorage.getItem('anilist_username');
+            const savedFilter = localStorage.getItem('anilist_filter');
+
+            if (savedFilter) {
+                currentFilter = savedFilter;
+                updateFilterUI(currentFilter);
+            }
+
+            if (savedUsername) {
+                DOM.input.value = savedUsername;
+                fetchAniListData(savedUsername);
+            }
+        };
+
+        DOM.btn.addEventListener('click', () => {
+            const username = DOM.input.value.trim();
+            if (username) {
+                localStorage.setItem('anilist_username', username);
+                fetchAniListData(username);
+            }
+        });
+
+        DOM.input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                DOM.btn.click();
+            }
+        });
+
+        DOM.filters.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentFilter = e.target.getAttribute('data-status');
+                localStorage.setItem('anilist_filter', currentFilter);
+                updateFilterUI(currentFilter);
+                renderGrid();
+            });
+        });
+
+        function updateFilterUI(filterValue) {
+            DOM.filters.forEach(btn => {
+                if (btn.getAttribute('data-status') === filterValue) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        async function fetchAniListData(username) {
+            DOM.statusMessage.innerHTML = '<div class="loader"></div>';
+            DOM.grid.innerHTML = '';
+            allAnimeData = [];
+            clearInterval(countdownInterval);
+
+            const variables = { userName: username };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ query, variables })
+                });
+
+                const json = await response.json();
+
+                if (json.errors) {
+                    throw new Error(json.errors[0].message);
+                }
+
+                const lists = json.data.MediaListCollection.lists;
+                
+                lists.forEach(list => {
+                    list.entries.forEach(entry => {
+                        entry.listStatus = list.status;
+                        allAnimeData.push(entry);
+                    });
+                });
+
+                if (allAnimeData.length === 0) {
+                    DOM.statusMessage.textContent = "No anime found for this user.";
+                } else {
+                    DOM.statusMessage.textContent = "";
+                    renderGrid();
+                    startTimers();
+                }
+
+            } catch (error) {
+                DOM.statusMessage.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function incrementLocalProgress(mediaId, currentAnilistProgress) {
+            const storageKey = `local_progress_${mediaId}`;
+            let localProgress = parseInt(localStorage.getItem(storageKey)) || currentAnilistProgress;
+            
+            localProgress++;
+            localStorage.setItem(storageKey, localProgress);
+            
+            // Re-render immediately to update visual states
+            renderGrid();
+        }
+
+        function renderGrid() {
+            DOM.grid.innerHTML = '';
+
+            const filteredData = currentFilter === 'ALL' 
+                ? allAnimeData 
+                : allAnimeData.filter(entry => entry.listStatus === currentFilter);
+
+            // Sort: Airing closest first, then alphabetical
+            filteredData.sort((a, b) => {
+                const aTime = a.media.nextAiringEpisode ? a.media.nextAiringEpisode.airingAt : Infinity;
+                const bTime = b.media.nextAiringEpisode ? b.media.nextAiringEpisode.airingAt : Infinity;
+                if (aTime !== bTime) return aTime - bTime;
+                
+                const aTitle = a.media.title.english || a.media.title.romaji;
+                const bTitle = b.media.title.english || b.media.title.romaji;
+                return aTitle.localeCompare(bTitle);
+            });
+
+            if (filteredData.length === 0) {
+                DOM.grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-main);">No anime found in this category.</div>`;
+                return;
+            }
+
+            filteredData.forEach(entry => {
+                const media = entry.media;
+                const title = media.title.english || media.title.romaji || "Unknown Title";
+                const cover = media.coverImage.large;
+                const totalEpisodes = media.episodes || "?";
+                const statusStr = entry.listStatus;
+                
+                // Fetch potential local manual overrides
+                const storageKey = `local_progress_${media.id}`;
+                let localProgress = parseInt(localStorage.getItem(storageKey)) || 0;
+                
+                // Clean up local override if official AniList sync caught up
+                if (entry.progress >= localProgress && localProgress !== 0) {
+                    localStorage.removeItem(storageKey);
+                    localProgress = 0;
+                }
+
+                // Final displayed watched count
+                const watched = Math.max(entry.progress, localProgress);
+                const isOverridden = localProgress > entry.progress;
+
+                // Calculate released episodes
+                let released = totalEpisodes;
+                let nextAiringTimestamp = null;
+                let nextEpisodeNum = null;
+
+                if (media.nextAiringEpisode) {
+                    released = media.nextAiringEpisode.episode - 1;
+                    nextAiringTimestamp = media.nextAiringEpisode.airingAt;
+                    nextEpisodeNum = media.nextAiringEpisode.episode;
+                } else if (media.status === "RELEASING") {
+                    released = "?"; 
+                }
+
+                // Status Evaluation
+                let isBehind = false;
+                let availabilityHtml = "";
+                let behindCount = 0;
+
+                if (released !== "?" && watched < released) {
+                    isBehind = true;
+                    behindCount = released - watched;
+                    availabilityHtml = `<div class="availability new-ep">New Ep Available (+${behindCount} behind)</div>`;
+                } else {
+                    availabilityHtml = `<div class="availability up-to-date">Up to Date</div>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = 'anime-card';
+                
+                // Build dynamic status badges
+                let badgeRowHtml = `<span class="anime-status-badge status-${statusStr.toLowerCase()}">${statusStr}</span>`;
+                if (isOverridden) {
+                    badgeRowHtml += `<span class="override-badge">Nexus Sync Pending</span>`;
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <img src="${cover}" alt="${title}" class="cover-img">
+                        <div class="card-info">
+                            <div class="badge-row">${badgeRowHtml}</div>
+                            <div class="anime-title" title="${title}">${title}</div>
+                            
+                            <div class="progress-text">
+                                <div>Watched: <span class="highlight">${watched}</span> / ${totalEpisodes}</div>
+                                <button class="plus-btn" data-id="${media.id}" data-anilist="${entry.progress}" title="Nexus watch shortcut (+1)">+</button>
+                            </div>
+                            <div class="progress-text" style="margin-top: 5px;">
+                                <span>Released: <span class="highlight">${released}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        ${availabilityHtml}
+                        ${nextAiringTimestamp 
+                            ? `<div class="timer-container">
+                                 <div class="timer-label">Next Episode (${nextEpisodeNum})</div>
+                                 <div class="timer" data-timestamp="${nextAiringTimestamp}">Calculating...</div>
+                               </div>` 
+                            : `<div class="no-timer">No upcoming episodes scheduled</div>`
+                        }
+                    </div>
+                `;
+                
+                // Bind +1 event listener
+                card.querySelector('.plus-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const mId = e.target.getAttribute('data-id');
+                    const aProg = parseInt(e.target.getAttribute('data-anilist'));
+                    incrementLocalProgress(mId, aProg);
+                });
+
+                DOM.grid.appendChild(card);
+            });
+
+            updateAllTimers();
+        }
+
+        function startTimers() {
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(updateAllTimers, 1000);
+        }
+
+        function updateAllTimers() {
+            const timers = document.querySelectorAll('.timer');
+            const now = Math.floor(Date.now() / 1000);
+
+            timers.forEach(timer => {
+                const targetTime = parseInt(timer.getAttribute('data-timestamp'));
+                const diff = targetTime - now;
+
+                if (diff <= 0) {
+                    timer.textContent = "Airing / Just Aired";
+                    return;
+                }
+
+                const days = Math.floor(diff / (60 * 60 * 24));
+                const hours = Math.floor((diff % (60 * 60 * 24)) / (60 * 60));
+                const mins = Math.floor((diff % (60 * 60)) / 60);
+                const secs = diff % 60;
+
+                let timeString = "";
+                if (days > 0) timeString += `${days}d `;
+                timeString += `${hours}h ${mins}m ${secs}s`;
+
+                timer.textContent = timeString;
+            });
+        }
+    </script>
+</body>
+</html>
+
