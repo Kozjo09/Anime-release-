@@ -379,17 +379,39 @@
           }
         }`;
 
-        window.onload = () => {
-            const savedUsername = localStorage.getItem('anilist_username');
-            const savedFilter = localStorage.getItem('anilist_filter');
-
-            if (savedFilter) {
-                currentFilter = savedFilter;
-                updateFilterUI(currentFilter);
+        // Update URL path without refreshing the page
+        function updateURL(username, filter) {
+            if (!username) return;
+            const newUrl = `/${username}/${filter.toLowerCase()}/`;
+            if (window.location.pathname !== newUrl) {
+                window.history.pushState({}, '', newUrl);
             }
+        }
+
+        window.onload = () => {
+            // Parse URL parameters (e.g., site.com/username/dropped/)
+            const pathSegments = window.location.pathname.split('/').filter(segment => segment.length > 0);
+            let urlUsername = null;
+            let urlFilter = null;
+
+            if (pathSegments.length >= 1) {
+                urlUsername = pathSegments[0];
+            }
+            if (pathSegments.length >= 2) {
+                urlFilter = pathSegments[1].toUpperCase();
+            }
+
+            const savedUsername = urlUsername || localStorage.getItem('anilist_username');
+            const savedFilter = urlFilter || localStorage.getItem('anilist_filter') || 'ALL';
+
+            currentFilter = savedFilter;
+            updateFilterUI(currentFilter);
 
             if (savedUsername) {
                 DOM.input.value = savedUsername;
+                localStorage.setItem('anilist_username', savedUsername);
+                localStorage.setItem('anilist_filter', currentFilter);
+                updateURL(savedUsername, currentFilter);
                 fetchAniListData(savedUsername);
             }
         };
@@ -398,6 +420,7 @@
             const username = DOM.input.value.trim();
             if (username) {
                 localStorage.setItem('anilist_username', username);
+                updateURL(username, currentFilter);
                 fetchAniListData(username);
             }
         });
@@ -413,7 +436,15 @@
                 currentFilter = e.target.getAttribute('data-status');
                 localStorage.setItem('anilist_filter', currentFilter);
                 updateFilterUI(currentFilter);
-                renderGrid();
+                
+                const currentUsername = DOM.input.value.trim() || localStorage.getItem('anilist_username');
+                if (currentUsername) {
+                    updateURL(currentUsername, currentFilter);
+                }
+
+                if (allAnimeData.length > 0) {
+                    renderGrid();
+                }
             });
         });
 
